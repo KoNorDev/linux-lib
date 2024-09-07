@@ -1,0 +1,47 @@
+#!/bin/bash
+
+hostname=profile:${USER}@raspberrypi.local
+
+if [[ -z "$SSH_REMOTE_FORWARD_PORT" ]]; then
+    >&2 echo "Can't determine RemoteForward port from environment variable SSH_REMOTE_FORWARD_PORT";
+    exit 2
+fi
+
+args=()
+
+localfile=${1/\/tmp\/*_/}
+
+for i in {1..4}; do
+    unset obj_hash
+    obj_hash=`git hash-object ${!i}`
+
+    unset commit_hash
+    if [[ -n "$obj_hash" ]]; then
+        commit_hash=(`git log --all --find-object=$obj_hash --format=%h`)
+    fi
+
+    if [[ -n "${!i}" ]]; then
+        args+=("-title$i=\'\$localfile${commit_hash:+ {${commit_hash[-1]}\}}\'")
+    fi
+
+    if [[ -z "$commit_hash" && -e ${!i} ]]; then
+        localfile=${!i}
+    fi
+done
+
+sanitize () {
+    if [[ $1 =~ ^-mergeoutput= ]]; then
+        echo $hostname?`realpath "${1/-mergeoutput=/}"`
+    elif [[ -e $1 ]]; then
+        echo $hostname?`realpath "$1"`
+    else
+        return 1
+    fi
+}
+
+local=`sanitize $1`
+remote=`sanitize $2`
+base=`sanitize $3`
+merged=`sanitize $4`
+
+eval ssh -p$SSH_REMOTE_FORWARD_PORT localhost bcompare $local $remote $base $merged ${args[@]}
