@@ -9,8 +9,6 @@ fi
 
 args=()
 
-localfile=${1/\/tmp\/*_/}
-
 for i in {1..4}; do
     unset obj_hash
     obj_hash=`git hash-object ${!i}`
@@ -20,12 +18,18 @@ for i in {1..4}; do
         commit_hash=(`git log --all --find-object=$obj_hash --format=%h`)
     fi
 
-    if [[ -n "${!i}" ]]; then
+    if [[ "${!i}" == "/dev/null" ]]; then
+        args+=("-title$i=null")
+    elif [[ -n "${!i}" ]]; then
         args+=("-title$i=\'\$localfile${commit_hash:+ {${commit_hash[-1]}\}}\'")
     fi
 
+    if [[ ${!i} =~ ^/tmp ]]; then
+        args+=("-ro$i")
+    fi
+
     if [[ -z "$commit_hash" && -e ${!i} ]]; then
-        localfile=${!i}
+        localfile=${!i/\/tmp\/*_/}
     fi
 done
 
