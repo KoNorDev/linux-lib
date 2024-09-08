@@ -1,0 +1,50 @@
+#!/bin/bash
+
+
+name_status=`git diff --name-status $@`
+
+declare -A filemap
+
+IFS='
+'
+for ns in ${name_status[@]}; do
+    IFS=$'\t'
+    element=($ns)
+    filemap["${element[1]}"]=${element[0]}
+    if [[ ${element[0]} =~ ^R ]]; then
+        filemap["${element[1]}"]+=":${element[2]}"
+    fi
+done
+IFS=' '
+
+args=()
+
+while [[ $# > 0 ]]; do
+    if [[ ! ${!filemap[@]} =~ $1 ]]; then
+        args+=($1)
+    fi
+    shift
+done
+
+if [[ ${#args[@]} == 0 ]] || [[ ! "${args[-1]}" == "--" ]]; then
+    args+=(--)
+fi
+
+for file in ${!filemap[@]}; do
+    echo -n $file
+    if [[ ${filemap[$file]} == "A" ]]; then
+        echo -en " [new,\tskip]"
+        unset "filemap[$file]"
+    elif [[ ${filemap[$file]} == "D" ]]; then
+        echo -en " [deleted,\tskip]"
+        unset "filemap[$file]"
+    fi
+    echo
+done
+
+for file in ${!filemap[@]}; do
+    git difftool ${args[@]} $file &
+    pid=$!
+done
+
+wait $pid
