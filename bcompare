@@ -4,10 +4,11 @@ hostname=profile:${USER}@raspberrypi.local
 
 if [[ -z "$SSH_REMOTE_FORWARD_PORT" ]]; then
     >&2 echo "Can't determine RemoteForward port from environment variable SSH_REMOTE_FORWARD_PORT";
-    exit 2
+    exit 1
 fi
 
-args=()
+declare -a args
+declare -A filenames
 
 for i in {1..4}; do
     unset obj_hash
@@ -18,18 +19,18 @@ for i in {1..4}; do
         commit_hash=(`git log --all --find-object=$obj_hash --format=%h`)
     fi
 
-    if [[ "${!i}" == "/dev/null" ]]; then
+    if [[ ${!i} == /dev/null ]]; then
         args+=("-title$i=null")
     elif [[ -n "${!i}" ]]; then
-        args+=("-title$i=\'\$localfile${commit_hash:+ {${commit_hash[-1]}\}}\'")
+        args+=("-title$i=\'\${filenames[$i]}${commit_hash:+ {${commit_hash[-1]}\}}\'")
     fi
 
     if [[ ${!i} =~ ^/tmp ]]; then
         args+=("-ro$i")
     fi
 
-    if [[ -z "$commit_hash" && -e ${!i} ]]; then
-        localfile=${!i/\/tmp\/*_/}
+    if [[ -e ${!i} && ${!i} != /dev/null ]]; then
+        filenames[$i]=${!i/\/tmp\/*_/}
     fi
 done
 
