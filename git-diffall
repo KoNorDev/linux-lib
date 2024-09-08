@@ -23,6 +23,7 @@ while [[ $# > 0 ]]; do
     if [[ ! ${!filemap[@]} =~ $1 ]]; then
         args+=($1)
     fi
+
     shift
 done
 
@@ -31,15 +32,23 @@ if [[ ${#args[@]} == 0 ]] || [[ ! "${args[-1]}" == "--" ]]; then
 fi
 
 for file in ${!filemap[@]}; do
-    echo -n $file
-    if [[ ${filemap[$file]} == "A" ]]; then
-        echo -en " [new,\tskip]"
-        unset "filemap[$file]"
-    elif [[ ${filemap[$file]} == "D" ]]; then
-        echo -en " [deleted,\tskip]"
-        unset "filemap[$file]"
+    echo -en "$file ["
+
+    status=(${filemap[$file]})
+
+    if [[ -z $noskip ]]; then
+        if [[ ${status} == "A" ]]; then
+            status+=("skip")
+            unset filemap[$file]
+        elif [[ ${status} == "D" ]]; then
+            status+=("skip")
+            unset filemap[$file]
+        fi
     fi
-    echo
+
+    echo "${status[@]}]"
+
+    unset status
 done
 
 for file in ${!filemap[@]}; do
