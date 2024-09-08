@@ -18,8 +18,25 @@ done
 IFS=' '
 
 args=()
+submodules=()
 
 while [[ $# > 0 ]]; do
+    case $1 in
+
+    --no-skip)
+        noskip=1
+        shift
+        continue
+        ;;
+
+    --recursive)
+        recursive=1
+        shift
+        continue
+        ;;
+
+    esac
+
     if [[ ! ${!filemap[@]} =~ $1 ]]; then
         args+=($1)
     fi
@@ -36,24 +53,35 @@ for file in ${!filemap[@]}; do
 
     status=(${filemap[$file]})
 
-    if [[ -z $noskip ]]; then
-        if [[ ${status} == "A" ]]; then
-            status+=("skip")
-            unset filemap[$file]
-        elif [[ ${status} == "D" ]]; then
-            status+=("skip")
-            unset filemap[$file]
-        fi
+    if [[ -d $file ]]; then
+        submodule="$file"
+        status="S$status"
     fi
 
-    echo "${status[@]}]"
+    if [[ -z "$noskip" ]] && [[ -n "$submodule" ]] || [[ ${status} == "A" ]] || [[ ${status} == "D" ]]; then
+        status+=("skip")
+        unset filemap[$file]
+    fi
 
-    unset status
-done
+    echo "$status]"
 
-for file in ${!filemap[@]}; do
-    git difftool ${args[@]} $file &
+    tempargs=()
+
+    if [[ ${filemap[$file]} =~ ^R ]]; then
+        IFS=':'
+        renamedata=(${filemap[$file]})
+        tempargs+=("-M${renamedata[0]:1}%")
+        file=($file ${renamedata[1]})
+    fi
+
+    git difftool ${tempargs[@]} ${args[@]} ${file[@]} &
     pid=$!
+    if [[ -n "$submodule" ]] && [[ -n "$recursive" ]]; then
+        git -C $submodule diffall ${args[@]} &
+        pid=$!
+    fi
+
+    unset status submodule tempargs
 done
 
 wait $pid
