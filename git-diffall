@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cd `git rev-parse --show-toplevel`
 
 name_status=`git diff --name-status $@`
 
@@ -73,6 +74,8 @@ for file in ${!filemap[@]}; do
         tempargs+=("-M${renamedata[0]:1}%")
         file=($file ${renamedata[1]})
     fi
+
+    sleep .25
 
     git difftool ${tempargs[@]} ${args[@]} ${file[@]} &
     pid=$!
